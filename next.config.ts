@@ -1,0 +1,1 @@
+import type {NextConfig} from "next"; const config:NextConfig={serverExternalPackages:["openai"]}; export default config;
