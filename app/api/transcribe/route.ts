@@ -1,32 +1,82 @@
-import OpenAI from "openai";
 import { del } from "@vercel/blob";
 import { NextResponse } from "next/server";
+
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
 export async function POST(request: Request) {
- const key = process.env.AUDIO_BRIDGE_API_KEY;
- if (key && request.headers.get("authorization") !== "Bearer " + key) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
- if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "OPENAI_API_KEY não configurada." }, { status: 503 });
- let url = "";
- try {
-  const body = await request.json() as { url?: string; language?: string; context?: string };
-  url = body.url || "";
-  if (!url.startsWith("https://")) return NextResponse.json({ error: "URL inválida." }, { status: 400 });
-  const host = new URL(url).hostname;
-  if (!host.endsWith(".public.blob.vercel-storage.com")) return NextResponse.json({ error: "Use uma URL do Vercel Blob." }, { status: 400 });
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Não foi possível baixar o áudio.");
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length > 25 * 1024 * 1024) throw new Error("Arquivo acima de 25 MB.");
-  const type = response.headers.get("content-type") || "audio/mpeg";
-  const ext = type.includes("wav") ? "wav" : type.includes("mp4") ? "m4a" : type.includes("webm") ? "webm" : type.includes("ogg") ? "ogg" : "mp3";
-  const file = new File([bytes], "audio." + ext, { type });
-  const ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const result = await ai.audio.transcriptions.create({ file, model: "gpt-4o-mini-transcribe", ...(body.language ? { language: body.language } : {}), ...(body.context ? { prompt: body.context.slice(0, 900) } : {}), response_format: "json" });
-  return NextResponse.json({ text: result.text });
- } catch (e) {
-  return NextResponse.json({ error: e instanceof Error ? e.message : "Erro na transcrição." }, { status: 500 });
- } finally {
-  if (url) { try { await del(url); } catch {} }
- }
+  const accessKey = process.env.AUDIO_BRIDGE_API_KEY;
+  if (accessKey && request.headers.get("authorization") !== `Bearer ${accessKey}`) {
+    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  }
+
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) {
+    return NextResponse.json({ error: "GROQ_API_KEY não configurada. Crie uma chave gratuita na Groq e adicione nas variáveis da Vercel." }, { status: 503 });
+  }
+
+  let blobUrl = "";
+  try {
+    const body = await request.json() as { url?: string; language?: string; context?: string };
+    blobUrl = body.url || "";
+
+    if (!blobUrl.startsWith("https://")) {
+      return NextResponse.json({ error: "URL inválida." }, { status: 400 });
+    }
+
+    const parsedUrl = new URL(blobUrl);
+    if (!parsedUrl.hostname.endsWith(".public.blob.vercel-storage.com")) {
+      return NextResponse.json({ error: "Use uma URL do Vercel Blob." }, { status: 400 });
+    }
+
+    const audioResponse = await fetch(blobUrl);
+    if (!audioResponse.ok) throw new Error("Não foi possível baixar o áudio.");
+
+    const bytes = Buffer.from(await audioResponse.arrayBuffer());
+    if (bytes.length > 25 * 1024 * 1024) throw new Error("Arquivo acima de 25 MB.");
+
+    const contentType = audioResponse.headers.get("content-type") || "audio/mpeg";
+    const extension = contentType.includes("wav") ? "wav"
+      : contentType.includes("mp4") ? "mp4"
+      : contentType.includes("webm") ? "webm"
+      : contentType.includes("ogg") ? "ogg"
+      : contentType.includes("flac") ? "flac"
+      : "mp3";
+
+    const form = new FormData();
+    form.append("file", new Blob([bytes], { type: contentType }), `audio.${extension}`);
+    form.append("model", "whisper-large-v3-turbo");
+    form.append("response_format", "verbose_json");
+    form.append("temperature", "0");
+    if (body.language) form.append("language", body.language);
+    if (body.context) form.append("prompt", body.context.slice(0, 900));
+
+    const transcriptionResponse = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${groqKey}` },
+      body: form,
+    });
+
+    const result = await transcriptionResponse.json();
+    if (!transcriptionResponse.ok) {
+      const message = result?.error?.message || "Falha ao transcrever com Groq.";
+      return NextResponse.json({ error: message }, { status: transcriptionResponse.status });
+    }
+
+    return NextResponse.json({
+      text: result.text || "",
+      language: result.language,
+      duration: result.duration,
+      segments: result.segments || [],
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erro na transcrição." },
+      { status: 500 },
+    );
+  } finally {
+    if (blobUrl) {
+      try { await del(blobUrl); } catch {}
+    }
+  }
 }
