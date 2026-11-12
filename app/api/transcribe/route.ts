@@ -1,1 +1,32 @@
-import OpenAI from"openai";import{del}from"@vercel/blob";import{NextResponse}from"next/server";export const runtime="nodejs";export const maxDuration=60;export async function POST(request:Request){const key=process.env.AUDIO_BRIDGE_API_KEY;if(key&&request.headers.get("authorization")!=="Bearer "+key)return NextResponse.json({error:"Não autorizado"},{status:401});if(!process.env.OPENAI_API_KEY)return NextResponse.json({error:"OPENAI_API_KEY não configurada."},{status:503});let url="";try{const body=await request.json()as{url?:string;language?:string;context?:string};url=body.url||"";if(!url.startsWith("https://"))return NextResponse.json({error:"URL inválida."},{status:400});const host=new URL(url).hostname;if(!host.endsWith(".public.blob.vercel-storage.com"))return NextResponse.json({error:"Use uma URL do Vercel Blob."},{status:400});const response=await fetch(url);if(!response.ok)throw new Error("Não foi possível baixar o áudio.");const bytes=Buffer.from(await response.arrayBuffer());if(bytes.length>25*1024*1024)throw new Error("Arquivo acima de 25 MB.");const type=response.headers.get("content-type")||"audio/mpeg",ext=type.includes("wav")?"wav":type.includes("mp4")?"m4a":type.includes("webm")?"webm":type.includes("ogg")?"ogg":"mp3";const file=new File([bytes],"audio."+ext,{type});const ai=new OpenAI({apiKey:process.env.OPENAI_API_KEY});const result=await ai.audio.transcriptions.create({file,model:"gpt-4o-mini-transcribe",...(body.language?{language:body.language}:{}),...(body.context?{prompt:body.context.slice(0,900)}:{}),response_format:"verbose_json",timestamp_granularities:["segment"]});return NextResponse.json({text:result.text,language:result.language,duration:result.duration,segments:result.segments})}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Erro na transcrição."},{status:500})}finally{if(url){try{await del(url)}catch{}}}}
+import OpenAI from "openai";
+import { del } from "@vercel/blob";
+import { NextResponse } from "next/server";
+export const runtime = "nodejs";
+export const maxDuration = 60;
+export async function POST(request: Request) {
+ const key = process.env.AUDIO_BRIDGE_API_KEY;
+ if (key && request.headers.get("authorization") !== "Bearer " + key) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+ if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "OPENAI_API_KEY não configurada." }, { status: 503 });
+ let url = "";
+ try {
+  const body = await request.json() as { url?: string; language?: string; context?: string };
+  url = body.url || "";
+  if (!url.startsWith("https://")) return NextResponse.json({ error: "URL inválida." }, { status: 400 });
+  const host = new URL(url).hostname;
+  if (!host.endsWith(".public.blob.vercel-storage.com")) return NextResponse.json({ error: "Use uma URL do Vercel Blob." }, { status: 400 });
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Não foi possível baixar o áudio.");
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length > 25 * 1024 * 1024) throw new Error("Arquivo acima de 25 MB.");
+  const type = response.headers.get("content-type") || "audio/mpeg";
+  const ext = type.includes("wav") ? "wav" : type.includes("mp4") ? "m4a" : type.includes("webm") ? "webm" : type.includes("ogg") ? "ogg" : "mp3";
+  const file = new File([bytes], "audio." + ext, { type });
+  const ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const result = await ai.audio.transcriptions.create({ file, model: "gpt-4o-mini-transcribe", ...(body.language ? { language: body.language } : {}), ...(body.context ? { prompt: body.context.slice(0, 900) } : {}), response_format: "json" });
+  return NextResponse.json({ text: result.text });
+ } catch (e) {
+  return NextResponse.json({ error: e instanceof Error ? e.message : "Erro na transcrição." }, { status: 500 });
+ } finally {
+  if (url) { try { await del(url); } catch {} }
+ }
+}
