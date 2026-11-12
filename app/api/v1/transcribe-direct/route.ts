@@ -17,8 +17,7 @@ export async function POST(request: Request) {
     if (!(audio instanceof File)) return NextResponse.json({ error: "Envie um arquivo de áudio." }, { status: 400 });
     if (audio.size === 0) return NextResponse.json({ error: "O arquivo está vazio." }, { status: 400 });
     if (audio.size > 25 * 1024 * 1024) return NextResponse.json({ error: "O áudio ultrapassa o limite de 25 MB." }, { status: 413 });
-    const audioExtension = /\\.(opus|ogg|oga|mp3|m4a|wav|aac|amr|3gp|webm|mp4)$/i.test(audio.name);
-    if (!(audio.type.startsWith("audio/") || audio.type === "video/mp4" || audio.type === "application/ogg" || audioExtension)) return NextResponse.json({ error: "Formato de áudio não suportado." }, { status: 415 });
+    if (!(audio.type.startsWith("audio/") || audio.type === "video/mp4")) return NextResponse.json({ error: "Formato de áudio não suportado." }, { status: 415 });
 
     const groqForm = new FormData();
     groqForm.append("file", audio, audio.name || "audio.webm");
