@@ -37,7 +37,9 @@ export async function POST(request: Request) {
 
     const contentType = audioResponse.headers.get("content-type") || "audio/mpeg";
     const originalName = decodeURIComponent(parsedUrl.pathname.split("/").pop() || "audio.mp3");
-    const namedExtension = originalName.match(/\\.(opus|ogg|oga|mp3|m4a|wav|aac|amr|3gp|webm|mp4)$/i)?.[1]?.toLowerCase();
+    const namedExtensionRaw = originalName.match(/\\.(opus|ogg|oga|mp3|m4a|wav|aac|amr|3gp|webm|mp4)$/i)?.[1]?.toLowerCase();
+    // Whisper/Groq expects Opus voice notes inside an OGG container to be labeled as OGG.
+    const namedExtension = namedExtensionRaw === "opus" || namedExtensionRaw === "oga" ? "ogg" : namedExtensionRaw;
     const mimeExtension = contentType.includes("wav") ? "wav"
       : contentType.includes("mp4") ? "mp4"
       : contentType.includes("webm") ? "webm"
@@ -49,9 +51,17 @@ export async function POST(request: Request) {
       : contentType.includes("mpeg") ? "mp3"
       : "mp3";
     const extension = namedExtension || mimeExtension;
+    const normalizedContentType = contentType === "application/octet-stream"
+      ? extension === "ogg" ? "audio/ogg"
+        : extension === "mp3" ? "audio/mpeg"
+        : extension === "m4a" || extension === "mp4" ? "audio/mp4"
+        : extension === "wav" ? "audio/wav"
+        : extension === "webm" ? "audio/webm"
+        : contentType
+      : contentType;
 
     const form = new FormData();
-    form.append("file", new Blob([bytes], { type: contentType }), `audio.${extension}`);
+    form.append("file", new Blob([bytes], { type: normalizedContentType }), `audio.${extension}`);
     form.append("model", "whisper-large-v3-turbo");
     form.append("response_format", "verbose_json");
     form.append("temperature", "0");
