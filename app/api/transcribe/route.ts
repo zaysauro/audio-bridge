@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
     const contentType = audioResponse.headers.get("content-type") || "audio/mpeg";
     const originalName = decodeURIComponent(parsedUrl.pathname.split("/").pop() || "audio.mp3");
-    const namedExtensionRaw = originalName.match(/\\.(opus|ogg|oga|mp3|m4a|wav|aac|amr|3gp|webm|mp4)$/i)?.[1]?.toLowerCase();
+    const namedExtensionRaw = originalName.match(/\.(opus|ogg|oga|mp3|m4a|wav|aac|amr|3gp|webm|mp4)$/i)?.[1]?.toLowerCase();
     // Whisper/Groq expects Opus voice notes inside an OGG container to be labeled as OGG.
     const namedExtension = namedExtensionRaw === "opus" || namedExtensionRaw === "oga" ? "ogg" : namedExtensionRaw;
     const mimeExtension = contentType.includes("wav") ? "wav"
