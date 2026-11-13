@@ -6,7 +6,17 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const accessKey = process.env.AUDIO_BRIDGE_API_KEY;
-  if (accessKey && request.headers.get("authorization") !== `Bearer ${accessKey}`) {
+  const authorization = request.headers.get("authorization");
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+  const requestOrigin = new URL(request.url).origin;
+  let sameOriginBrowserRequest = origin === requestOrigin;
+  if (!sameOriginBrowserRequest && referer) {
+    try { sameOriginBrowserRequest = new URL(referer).origin === requestOrigin; } catch {}
+  }
+  // Keep the AudioBridge web app usable from its own origin; CRM integrations
+  // must continue to use the private server-to-server bearer key.
+  if (accessKey && authorization !== `Bearer ${accessKey}` && !sameOriginBrowserRequest) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
