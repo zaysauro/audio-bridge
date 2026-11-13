@@ -36,12 +36,19 @@ export async function POST(request: Request) {
     if (bytes.length > 25 * 1024 * 1024) throw new Error("Arquivo acima de 25 MB.");
 
     const contentType = audioResponse.headers.get("content-type") || "audio/mpeg";
-    const extension = contentType.includes("wav") ? "wav"
+    const originalName = decodeURIComponent(parsedUrl.pathname.split("/").pop() || "audio.mp3");
+    const namedExtension = originalName.match(/\\.(opus|ogg|oga|mp3|m4a|wav|aac|amr|3gp|webm|mp4)$/i)?.[1]?.toLowerCase();
+    const mimeExtension = contentType.includes("wav") ? "wav"
       : contentType.includes("mp4") ? "mp4"
       : contentType.includes("webm") ? "webm"
-      : contentType.includes("ogg") ? "ogg"
+      : contentType.includes("ogg") || contentType.includes("opus") ? "ogg"
+      : contentType.includes("amr") ? "amr"
+      : contentType.includes("3gpp") ? "3gp"
       : contentType.includes("flac") ? "flac"
+      : contentType.includes("aac") ? "aac"
+      : contentType.includes("mpeg") ? "mp3"
       : "mp3";
+    const extension = namedExtension || mimeExtension;
 
     const form = new FormData();
     form.append("file", new Blob([bytes], { type: contentType }), `audio.${extension}`);
