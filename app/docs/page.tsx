@@ -1,1 +1,31 @@
-export default function Docs(){return <main style={{maxWidth:850,margin:"65px auto",padding:"0 24px",color:"#edf2eb",fontFamily:"Arial,sans-serif",lineHeight:1.7}}><a href="/" style={{color:"#c5f36b"}}>← AudioBridge</a><h1>AudioBridge API</h1><p>Serviço de transcrição para integrar áudio aos seus aplicativos.</p><h2>Variáveis</h2><ul><li><code>OPENAI_API_KEY</code> — chave do provedor, mantida no servidor.</li><li><code>BLOB_READ_WRITE_TOKEN</code> — token de um Vercel Blob Store.</li><li><code>AUDIO_BRIDGE_API_KEY</code> — opcional; exige Bearer no endpoint.</li></ul><h2>Fluxo</h2><p>O navegador envia o arquivo diretamente ao Vercel Blob com <code>@vercel/blob/client</code> e <code>handleUploadUrl: "/api/upload"</code>. Depois envia a URL temporária para transcrição.</p><h3>POST /api/transcribe</h3><pre style={{background:"#151b18",padding:18,overflow:"auto"}}>{'{ "url": "https://...public.blob.vercel-storage.com/audio.mp3", "language": "pt", "context": "Vocabulário opcional" }'}</pre><p>Se o bearer estiver ativo, envie <code>Authorization: Bearer SUA_CHAVE</code>. A resposta contém texto, idioma, duração e segmentos.</p><h3>GET /api/v1/health</h3><p>Verifica o serviço e a configuração do provedor.</p><h2>Limites</h2><p>Arquivos até 25 MB. O áudio temporário é removido após processamento. Esta versão ainda não possui contas, chaves individuais, cotas, histórico persistente ou troca de provedores.</p></main>}
+export default function Docs() {
+  return (
+    <main style={{ maxWidth: 850, margin: "65px auto", padding: "0 24px", color: "#f5f5f2", fontFamily: "Arial, sans-serif", lineHeight: 1.75 }}>
+      <a href="/" style={{ color: "#f1c84b", textDecoration: "none" }}>← Voltar ao Cadena Audio</a>
+      <p style={{ color: "#f1c84b", fontSize: 11, letterSpacing: 2, marginTop: 34 }}>CADENA IMÓVEIS · FERRAMENTA INTERNA</p>
+      <h1 style={{ fontSize: 38, marginBottom: 8 }}>Como usar o Cadena Audio</h1>
+      <p style={{ color: "#aeb2b3" }}>Transforme gravações de atendimentos, reuniões e conversas em texto que você pode copiar ou exportar.</p>
+      <h2 style={{ marginTop: 34 }}>Passo a passo</h2>
+      <ol>
+        <li>Selecione um arquivo de áudio ou vídeo compatível.</li>
+        <li>Escolha o idioma ou mantenha a detecção automática.</li>
+        <li>Se necessário, informe nomes próprios, bairros, empreendimentos ou termos que ajudem no reconhecimento.</li>
+        <li>Clique em <strong>Transcrever áudio</strong> e aguarde o processamento.</li>
+        <li>Copie o texto ou exporte em TXT, JSON ou SRT quando disponível.</li>
+      </ol>
+      <h2 style={{ marginTop: 34 }}>Formatos e limites</h2>
+      <p>MP3, WAV, M4A, WEBM, MP4 e outros formatos de áudio aceitos pelo navegador. Limite máximo por arquivo: 25 MB.</p>
+      <h2 style={{ marginTop: 34 }}>Privacidade</h2>
+      <p>O arquivo é enviado temporariamente ao Vercel Blob para processamento e removido após a tentativa de transcrição. O serviço utiliza o modelo Whisper Large V3 Turbo por meio da Groq. Não envie gravações sem autorização ou conteúdo que não possa ser tratado pelos serviços externos envolvidos.</p>
+      <h2 style={{ marginTop: 34 }}>Integração técnica</h2>
+      <p>O serviço mantém endpoints HTTP para integrações autorizadas:</p>
+      <ul>
+        <li><code>GET /api/v1/health</code> — status do serviço.</li>
+        <li><code>POST /api/upload</code> — autorização de upload temporário para Blob.</li>
+        <li><code>POST /api/transcribe</code> — transcrição a partir de uma URL do Blob.</li>
+        <li><code>POST /api/v1/transcribe-direct</code> — transcrição direta com autenticação Bearer.</li>
+      </ul>
+      <p style={{ color: "#92979a", fontSize: 12, marginTop: 48, borderTop: "1px solid #2b2e30", paddingTop: 18 }}>Cadena Audio · Ferramenta interna de produtividade · Cadena Imóveis</p>
+    </main>
+  );
+}
